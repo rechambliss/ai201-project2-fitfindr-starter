@@ -13,6 +13,7 @@ Tools:
 """
 
 import os
+import re
 
 from dotenv import load_dotenv
 from groq import Groq
@@ -78,7 +79,13 @@ def search_listings(
         size_lower = size.lower()
         listings = [l for l in listings if size_lower in l["size"].lower()]
 
-    keywords = [w.lower() for w in description.split()]
+    _stopwords = {
+        "looking", "for", "a", "an", "the", "under", "size", "want", "need",
+    }
+    keywords = [
+        w.lower() for w in description.split()
+        if len(w) > 2 and w.lower() not in _stopwords
+    ]
 
     def score(listing):
         text = " ".join([
@@ -86,7 +93,10 @@ def search_listings(
             listing.get("description", ""),
             " ".join(listing.get("style_tags", [])),
         ]).lower()
-        return sum(1 for kw in keywords if kw in text)
+        return sum(
+            1 for kw in keywords
+            if re.search(r'\b' + re.escape(kw) + r'\b', text)
+        )
 
     scored = [(score(l), l) for l in listings]
     scored = [(s, l) for s, l in scored if s > 0]
